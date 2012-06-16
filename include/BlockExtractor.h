@@ -1,0 +1,60 @@
+//#####################################################################
+// Copyright 2010, Ranjitha Kumar.
+// This software is governed by the license contained in LICENSE.
+//#####################################################################
+#ifndef _BLOCK_EXTRACTOR_H_
+#define _BLOCK_EXTRACTOR_H_
+
+#include <QSet>
+#include <QVarLengthArray>
+#include <QWebElement>
+
+namespace bricolage{
+
+class BentoBlock;
+
+//#####################################################################
+// Class BlockExtractor
+//#####################################################################
+class BlockExtractor
+{
+public:
+	QSet<BentoBlock*> mBlockPool;
+	
+protected:
+	enum {DIVIDE, NOT_DIVIDE, MOVE_ON, DONE};
+	BentoBlock* mRootBlock;
+
+public:	
+	~BlockExtractor()
+	{}
+
+public:
+	BlockExtractor(BentoBlock* rootBlock);
+
+protected:
+	void divideDOMTree(QWebElement& domNode);
+	int isDividable(QWebElement& domNode);
+	
+	int ruleIsRootBlock(const QWebElement& domNode) const;
+	int ruleIsHiddenOverflow(QWebElement& domNode) const;
+	int ruleBackgroundImage(QWebElement& domNode) const;
+	int ruleTextChildren(QWebElement& domNode) const;
+	int ruleNoValidChildren(QWebElement& domNode) const;
+	int ruleOneValidChild(QWebElement& domNode) const;
+	int ruleNoChildrenInBBox(QWebElement& domNode) const;
+	int ruleAllChildrenVTextNodes(QWebElement& domNode) const;
+	int ruleLineBreakChild(const QWebElement& domNode) const;
+	int ruleHRChild(const QWebElement& domNode) const;
+	int ruleDiffBackgroundColorChild(const QWebElement& domNode);
+	int ruleSameSizeAsRoot(QWebElement& domNode) const;
+	int ruleSiblingNotDivided(const QWebElement& domNode) const;
+	int ruleNotDivide() const;
+
+//#####################################################################
+};
+	
+//#####################################################################
+} // namespace bricolage
+
+#endif //  _BLOCK_EXTRACTOR_H_
