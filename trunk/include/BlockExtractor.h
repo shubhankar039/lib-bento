@@ -7,7 +7,7 @@
 
 #include <QSet>
 #include <QVarLengthArray>
-#include <QWebElement>
+#include "DOMElement.h"
 
 namespace bricolage{
 
@@ -33,22 +33,21 @@ public:
 	BlockExtractor(BentoBlock* rootBlock);
 
 protected:
-	void divideDOMTree(QWebElement& domNode);
-	int isDividable(QWebElement& domNode);
+	void divideDOMTree(DOMElement* domNode);
+	int isDividable(DOMElement* domNode);
 	
-	int ruleIsRootBlock(const QWebElement& domNode) const;
-	int ruleIsHiddenOverflow(QWebElement& domNode) const;
-	int ruleBackgroundImage(QWebElement& domNode) const;
-	int ruleTextChildren(QWebElement& domNode) const;
-	int ruleNoValidChildren(QWebElement& domNode) const;
-	int ruleOneValidChild(QWebElement& domNode) const;
-	int ruleNoChildrenInBBox(QWebElement& domNode) const;
-	int ruleAllChildrenVTextNodes(QWebElement& domNode) const;
-	int ruleLineBreakChild(const QWebElement& domNode) const;
-	int ruleHRChild(const QWebElement& domNode) const;
-	int ruleDiffBackgroundColorChild(const QWebElement& domNode);
-	int ruleSameSizeAsRoot(QWebElement& domNode) const;
-	int ruleSiblingNotDivided(const QWebElement& domNode) const;
+	int ruleIsRootBlock(DOMElement* domNode) const;
+	int ruleIsHiddenOverflow(DOMElement* domNode) const;
+	int ruleBackgroundImage(DOMElement* domNode) const;
+	int ruleTextChildren(DOMElement* domNode) const;
+	int ruleNoValidChildren(DOMElement* domNode) const;
+	int ruleOneValidChild(DOMElement* domNode) const;
+	int ruleNoChildrenInBBox(DOMElement* domNode) const;
+	int ruleAllChildrenVTextNodes(DOMElement* domNode) const;
+	int ruleLineBreakChild(DOMElement* domNode) const;
+	int ruleHRChild(DOMElement* domNode) const;
+	int ruleDiffBackgroundColorChild(DOMElement* domNode);
+	int ruleSameSizeAsRoot(DOMElement* domNode) const;
 	int ruleNotDivide() const;
 
 //#####################################################################

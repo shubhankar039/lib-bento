@@ -7,8 +7,8 @@
 
 #include <QVarLengthArray>
 #include <QVector>
-#include <QWebElement>
 #include "DOMUtils.h"
+#include "DOMTree.h"
 #include "Separator.h"
 
 namespace bricolage{
@@ -25,17 +25,14 @@ public:
 	QVector<QString> mNoChildrenTags, mNoSameTagChildren;
 
 protected:
-	QWebElement mBrowserDocument;
+	const DOMTree& mDOMTree;
 
 public:
-	Bento() : mNumMoves(0), mNumRedundant(0)
-	{}
-	
-	void init(QWebElement browserDocument) {
-		mBrowserDocument=browserDocument; 
-		mNoChildrenTags << "INPUT" << "OPTION" << "OPTGROUP" << "IMG" << "AREA" << "PARAM" << "BR" << "HR" << "PRE" << "CODE" << "TEXTAREA" << "SELECT" << "IFRAME" << "NOFRAME" << "STYLE" << "SCRIPT" << "LINK";
+	Bento(const DOMTree& domTree) : mDOMTree(domTree), mNumMoves(0), mNumRedundant(0)
+	{ 
+        mNoChildrenTags << "INPUT" << "OPTION" << "OPTGROUP" << "IMG" << "AREA" << "PARAM" << "BR" << "HR" << "PRE" << "CODE" << "TEXTAREA" << "SELECT" << "IFRAME" << "NOFRAME" << "STYLE" << "SCRIPT" << "LINK";
 		mNoSameTagChildren << "P" << "FORM" << "H1" << "H2" << "H3" << "H4" << "H5" << "H6" << "STRONG" << "B" << "I" << "SMALL" << "DEL" << "INS" << "OBJECT" << "FIELDSET" << "LABEL";		
-	}
+    }
 	
 public:
 	void computeBentoTree(BentoTree& bentoTree);
