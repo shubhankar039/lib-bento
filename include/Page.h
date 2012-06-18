@@ -5,10 +5,8 @@
 #ifndef _PAGE_H_
 #define _PAGE_H_
 
-#include <QList>
-#include <QWebElement>
-#include <QWebFrame>
 #include <QWebPage>
+#include "DOMTree.h"
 #include "BentoTree.h"
 
 namespace bricolage {
@@ -24,7 +22,7 @@ class Page
 public:
     uint mPageID;
     QString mURL;
-    QList<QWebElement> mDOMNodes;
+    DOMTree mDOMTree;
     BentoTree* mBentoTree;
 	
 public:
@@ -32,9 +30,6 @@ public:
 
 	~Page() 
 	{ delete mBentoTree; }
-
-private:
-    void setDOMNodes(const QWebElement& domNode);
 
 //#####################################################################
 };

@@ -12,20 +12,7 @@ using namespace bricolage;
 Page::Page(QWebPage& webPage, int pageID, QString url)
 :mPageID(pageID),mURL(url),mBentoTree(new BentoTree())
 {
-    setDOMNodes(webPage.mainFrame()->documentElement());
-    Bento bento;
-    bento.init(webPage.mainFrame()->documentElement());
+    mDOMTree.init(webPage);
+    Bento bento(mDOMTree);
     bento.computeBentoTree(*mBentoTree);
-}
-//#####################################################################
-// Function setDOMNodes
-//#####################################################################
-void Page::setDOMNodes(const QWebElement& domNode) {
-    QWebElement domChild = domNode.firstChild();
-    while (!domChild.isNull()) {
-        setDOMNodes(domChild);
-        domChild = domChild.nextSibling();
-    }
-    
-    mDOMNodes.append(domNode);
 }

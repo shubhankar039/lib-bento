@@ -8,9 +8,7 @@
 #include <QRect>
 #include <QSet>
 #include <QVector>
-#include <QWebElement>
-#include <QWebFrame>
-#include <QWebPage>
+#include "DOMElement.h"
 #include "DOMUtils.h"
 
 namespace bricolage {
@@ -23,26 +21,26 @@ class BentoBlock
     
 public: 
     uint mBentoID;
-	QWebElement mDOMNode;
+	DOMElement* mDOMNode;
     BentoBlock* mParent;  QVector<BentoBlock*> mChildren;
     QRect mGeometry;
     uint mLevel;
     bool mSameSizeContent; // TODO: keep this?
 
 	BentoBlock()
-	:mParent(NULL)
+	:mDOMNode(NULL),mParent(NULL)
 	{}
 	
-	BentoBlock(QWebElement domNode)
-	:mDOMNode(domNode),mParent(NULL),mGeometry(DOMUtils::getGeometry(domNode)),mSameSizeContent(false)
+	BentoBlock(DOMElement* domNode)
+	:mDOMNode(domNode),mParent(NULL),mGeometry(domNode->mGeometry),mSameSizeContent(false)
 	{
 		bool result;
-		QRect clipRect = DOMUtils::isPartiallyHidden(domNode, result);
+		QRect clipRect = DOMUtils::isPartiallyHidden(*domNode, result);
 		if (result) mGeometry = clipRect;
 	}
 	
 	BentoBlock(QSet<BentoBlock*>& blockPool)
-	:mParent(NULL),mGeometry(boundingRectangle(blockPool)),mSameSizeContent(false)
+	:mDOMNode(NULL),mParent(NULL),mGeometry(boundingRectangle(blockPool)),mSameSizeContent(false)
 	{}
 	
 	~BentoBlock()

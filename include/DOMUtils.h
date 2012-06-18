@@ -14,6 +14,7 @@
 #include <QWebElement>
 #include <QWebFrame>
 #include <QWebPage>
+#include "DOMElement.h"
 
 namespace bricolage{
 
@@ -24,135 +25,126 @@ class DOMUtils
 {
 	
 public:
-	static bool isInlineNode(const QWebElement& domNode)
+    static bool isInlineNode(const DOMElement& domNode)
 	{ return !(isLineBreakNode(domNode)); }
-
-	static bool isLineBreakNode(const QWebElement& domNode)
-	{ return (domNode.styleProperty("display", QWebElement::ComputedStyle) == "block"); }
-
-	static int numTextChildren(QWebElement& domNode)
+    
+	static bool isLineBreakNode(const DOMElement& domNode)
+	{ return (domNode.mComputedStyles["display"] == "block"); }
+    
+	static int numTextChildren(const DOMElement& domNode)
 	{ 
 		int numTextNodes = 0;
-		int numChildren = domNode.evaluateJavaScript("this.childNodes.length").toInt();
-		for (int i=0; i<numChildren; i++) {
-			QString jScript = "this.childNodes["+QString::number(i)+"].nodeType";
-			if (domNode.evaluateJavaScript(jScript).toInt()==3) {
-				jScript = "this.childNodes["+QString::number(i)+"].nodeValue";
-				if (domNode.evaluateJavaScript(jScript).toString().trimmed()!="") numTextNodes++;
-			}
-		}
-		return numTextNodes;
+        foreach(DOMElement* child, domNode.mChildren)
+        if (child->mNodeType==TYPE_TEXT && child->mNodeValue.trimmed()!="") numTextNodes++;
+        return numTextNodes;
 	}
 	
-	static bool hasOnlyTextChildren(QWebElement& domNode)
-	{
-		int numChildren = domNode.evaluateJavaScript("this.childNodes.length").toInt();
-		if (numChildren == numTextChildren(domNode)) return true;
-		else return false;
-	}
+	static bool hasOnlyTextChildren(const DOMElement& domNode)
+	{ return (domNode.mChildren.size() == numTextChildren(domNode)); }
 	
-	static QString textInNode(QWebElement& domNode)
+	static QString textInNode(const DOMElement& domNode)
 	{
 		QString nodeText = "";
-		
-		QVector<QWebElement> nodeStack; nodeStack.append(domNode);
+		QVector<DOMElement> nodeStack; nodeStack.append(domNode);
 		while(nodeStack.size()>0){
-			QWebElement currNode = nodeStack.front(); nodeStack.pop_front();
-			
-			int numChildren = currNode.evaluateJavaScript("this.childNodes.length").toInt();
-			for(int i=0; i<numChildren; i++) {
-				QString jScript = "this.childNodes["+QString::number(i)+"].nodeType";
-				if(currNode.evaluateJavaScript(jScript).toInt()==3) {
-					jScript = "this.childNodes["+QString::number(i)+"].nodeValue";
-					nodeText += currNode.evaluateJavaScript(jScript).toString().trimmed() + " ";
-				}
-			}
-			
-			QWebElement child = currNode.firstChild();
-			while (!child.isNull()) { nodeStack.append(child); child = child.nextSibling(); }
-		}
-		
+			DOMElement currNode = nodeStack.front(); nodeStack.pop_front();
+            if(currNode.mNodeType==TYPE_TEXT) nodeText += currNode.mNodeValue.trimmed() + " ";
+            foreach(DOMElement* child, currNode.mChildren) nodeStack.append(*child);
+        }
 		return nodeText;
 	}
 	
-	static bool isVirtualTextNode(QWebElement& domNode)
+	static bool isVirtualTextNode(const DOMElement& domNode)
 	{
 		if (isInlineNode(domNode)) {
 			if (hasOnlyTextChildren(domNode)) return true;
-			QWebElement child = domNode.firstChild();
-			while (!child.isNull()) { if (!isVirtualTextNode(child)) return false; child = child.nextSibling(); }
-			return true;
-		}
+            foreach(DOMElement* child, domNode.mChildren) if (!isVirtualTextNode(*child)) return false;
+            return true; 
+        }
 		return false;
 	}
-	
-	static bool hasValidDimensions(QRect& bBox) 
-	{
-		return (bBox.width()>5 && bBox.height()>5 && bBox.width()*bBox.height()>100);
-	}
-	
-	static bool isValidNode(QWebElement& domNode)
+    
+    static bool hasValidDimensions(const QRect& bBox) 
+	{ return (bBox.width()>5 && bBox.height()>5 && bBox.width()*bBox.height()>100); }
+
+	static bool isValidNode(const DOMElement& domNode)
 	{		
-		if ((domNode.tagName() == "SCRIPT") || (domNode.tagName() == "STYLE"))
+		if ((domNode.mTagName == "SCRIPT") || (domNode.mTagName == "STYLE"))
 			return false;
 		
-		if (domNode.styleProperty("display", QWebElement::ComputedStyle) == "none" ||
-			domNode.styleProperty("visibility", QWebElement::ComputedStyle) == "hidden" ||
-			domNode.styleProperty("opacity", QWebElement::ComputedStyle).toFloat() == 0.0)
+		if (domNode.mComputedStyles["display"] == "none" ||
+			domNode.mComputedStyles["visibility"] == "hidden" ||
+			domNode.mComputedStyles["opacity"].toFloat() == 0.0)
 			return false;
 		
-		QRect bBox = getGeometry(domNode);
+		QRect bBox = domNode.mGeometry;
 		if (bBox.left()+bBox.width()<0 || bBox.top()+bBox.height()<0 || !hasValidDimensions(bBox)) {
-			QWebElement child = domNode.firstChild();
-			while(!child.isNull()) { if(isValidNode(child)) return true; child = child.nextSibling(); }
+			foreach(DOMElement* child, domNode.mChildren) if(isValidNode(*child)) return true; 
 			return false;
 		}
 		
 		return true;
 	}
 	
-	static bool isHiddenOverflow(QWebElement& domNode)
+	static bool isHiddenOverflow(const DOMElement& domNode)
 	{	
-		QRect bBox = getGeometry(domNode);
-		QWebElement parentNode = domNode.parent();
-		while (!parentNode.isNull()) {
-			while (!parentNode.isNull()) {
-				if(parentNode.styleProperty("overflow", QWebElement::ComputedStyle) == "hidden") break;
-				parentNode = parentNode.parent();
+		QRect bBox = domNode.mGeometry;
+		DOMElement* parentNode = domNode.mParent;
+        while (parentNode!=NULL) {
+			while (parentNode!=NULL) {
+				if(parentNode->mComputedStyles["overflow"] == "hidden") break;
+				parentNode = parentNode->mParent;
 			}
 			
-			if (!parentNode.isNull()) {
-				QRect parentBBox = getGeometry(parentNode);
+			if (parentNode!=NULL) {
+				QRect parentBBox = parentNode->mGeometry;
 				if(!parentBBox.intersects(bBox)) return true;
-				parentNode = parentNode.parent();
+				parentNode = parentNode->mParent;
 			}
 		}
 		return false;
 	}
 	
-	static QRect isPartiallyHidden(QWebElement& domNode, bool& result)
+	static QRect isPartiallyHidden(const DOMElement& domNode, bool& result)
 	{	
-		QRect bBox = getGeometry(domNode);
-		QWebElement parentNode = domNode.parent();
-		while (!parentNode.isNull()) {
-			while (!parentNode.isNull()) {
-				if(parentNode.styleProperty("overflow", QWebElement::ComputedStyle) == "hidden") break;
-				parentNode = parentNode.parent();
+		QRect bBox = domNode.mGeometry;
+		DOMElement* parentNode = domNode.mParent;
+		while (parentNode!=NULL) {
+			while (parentNode!=NULL) {
+				if(parentNode->mComputedStyles["overflow"] == "hidden") break;
+				parentNode = parentNode->mParent;
 			}
 			
-			if (!parentNode.isNull()) {
-				QRect parentBBox = getGeometry(parentNode);
+			if (parentNode!=NULL) {
+				QRect parentBBox = parentNode->mGeometry;
 				if(parentBBox.intersects(bBox)) {
 					parentBBox.setRect(parentBBox.left()-1, parentBBox.top()-1, parentBBox.width()+2, parentBBox.height()+2);
 					if (!parentBBox.contains(bBox)) { result=true; return parentBBox.intersected(bBox); }
 				}
-				parentNode = parentNode.parent();
+				parentNode = parentNode->mParent;
 			}
 		}
 		
 		result = false; return QRect(0,0,0,0);
 	}
-
+    
+    static void addNonElementNodes(QWebElement& webNode, DOMElement* domNode)
+    {
+        int numChildren = webNode.evaluateJavaScript("this.childNodes.length").toInt();
+		for (int i=0; i<numChildren; i++) {
+			QString jScript = "this.childNodes["+QString::number(i)+"].nodeType";
+			if (webNode.evaluateJavaScript(jScript).toInt()!=TYPE_ELEMENT) {
+                DOMElement* d = new DOMElement();
+                d->mNodeType = webNode.evaluateJavaScript(jScript).toInt();
+				jScript = "this.childNodes["+QString::number(i)+"].nodeValue";
+                d->mNodeValue = webNode.evaluateJavaScript(jScript).toString();
+                d->mParent = domNode;
+                domNode->mChildren.append(d);
+			}
+		}
+        
+    }
+    
 	static int parsePixelFeature (const QString& pixelString)
 	{
 		int pixelFeature; bool okay;
@@ -199,7 +191,7 @@ public:
 		return r;
 	}
 	
-	static void getPostOrderList(QList<QWebElement>& postOrderList, QWebElement& domNode)
+	static void getPostOrderList(QList<QWebElement>& postOrderList, const QWebElement& domNode)
 	{
 	    QWebElement domChild = domNode.firstChild();
         while (!domChild.isNull()) {

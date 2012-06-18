@@ -1,0 +1,10 @@
+To build lib-bento you need to install CMake and Qt 4.7.4. Download the Qt libraries (debug and release) for your platform from ftp://ftp.qt.nokia.com/qt/source/.
+
+To build lib-bento on Mac OS X and Linux:
+	$ mkdir build
+	$ cd build
+	$ cmake ..
+	$ make
+
+This also builds the Test app, which you can run:
+	$ ./bin/BentoTest

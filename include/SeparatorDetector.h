@@ -9,7 +9,6 @@
 #include <QSet>
 #include <QVarLengthArray>
 #include <QVector>
-#include <QWebElement>
 #include "Separator.h"
 
 namespace bricolage{
@@ -28,14 +27,13 @@ public:
 	
 protected:
 	enum {HORIZONTAL, VERTICAL, CONTAINED, CROSSING1, CROSSING2, COVERING, DISTANT};
-	QWebElement mBrowserDocument;
 	QRect mBoundingBlock;
 	const QSet<BentoBlock*>& mBlockPool;
 	int mBaseWeight;
 	QVarLengthArray<QSet<BentoBlock*>, 10> subBlockPools;
 
 public:
-	SeparatorDetector(const QWebElement browserDocument, const QSet<BentoBlock*>& blockPool, int baseWeight=10); // TODO: REPLACE W/ A CONSTANT
+	SeparatorDetector(const QSet<BentoBlock*>& blockPool, int baseWeight=10); // TODO: REPLACE W/ A CONSTANT
 
 protected:
 	void computeSeparators(int orientation);
