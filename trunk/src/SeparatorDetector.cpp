@@ -1,6 +1,6 @@
 //#####################################################################
-// Copyright 2010, Ranjitha Kumar.
-// This software is governed by the license contained in LICENSE.
+// Copyright 2012, Ranjitha Kumar. All rights reserved.
+// This software is governed by the BSD 2-Clause License.
 //#####################################################################
 #include "DOMUtils.h"
 #include "SeparatorDetector.h"
@@ -9,8 +9,8 @@ using namespace bricolage;
 //#####################################################################
 // Function SeparatorDetector
 //#####################################################################
-SeparatorDetector::SeparatorDetector(const QSet<BentoBlock*>& blockPool, int baseWeight)
-:mBlockPool(blockPool), mBaseWeight(baseWeight)
+SeparatorDetector::SeparatorDetector(const QWebElement browserDocument, const QSet<BentoBlock*>& blockPool, int baseWeight)
+:mBrowserDocument(browserDocument), mBlockPool(blockPool), mBaseWeight(baseWeight)
 { 
 	mBoundingBlock = BentoBlock::boundingRectangle(mBlockPool);	
 	mHorizontalSeparators.append(Separator(mBoundingBlock.left(), mBoundingBlock.top(), mBoundingBlock.width(), mBoundingBlock.height(), baseWeight)); 	computeSeparators(HORIZONTAL);
@@ -18,13 +18,13 @@ SeparatorDetector::SeparatorDetector(const QSet<BentoBlock*>& blockPool, int bas
 
 	removeBorders();
 	addBlocksToSeparators();
-	//computeSeparatorWeights();
+	computeSeparatorWeights();
 	subdivideBlockPool();
 
 	if (subBlockPools.size() > 1) 
 		for (int i=0; i<subBlockPools.size(); i++)
 			if (subBlockPools[i].size() > 1) { 
-				SeparatorDetector subDetector(subBlockPools[i], mBaseWeight-3); 
+				SeparatorDetector subDetector(mBrowserDocument, subBlockPools[i], mBaseWeight-3); 
 				mHorizontalSeparators += subDetector.mHorizontalSeparators;
 				mVerticalSeparators += subDetector.mVerticalSeparators;
 			}
@@ -148,9 +148,8 @@ void SeparatorDetector::addBlocksToSeparators()
 		if(bentoBlock->mGeometry.left() >= mVerticalSeparators[i].right()) {mVerticalSeparators[i].mBlocks.insert(bentoBlock); break;} 
 	
 }
-/*
 //#####################################################################
-// Function computeSeparatorWeights
+// Function addBlocksToSeparators
 //#####################################################################
 void SeparatorDetector::computeSeparatorWeights()
 {
@@ -163,7 +162,7 @@ void SeparatorDetector::computeSeparatorWeights()
 			
 			if (blockList[j-1]->mGeometry.bottom() <= blockList[j]->mGeometry.top()) 
 				if(DOMUtils::numTextChildren(blockList[j-1]->mDOMNode)>0 && DOMUtils::numTextChildren(blockList[j]->mDOMNode)>0
-					&& DOMUtils::parsePixelFeature(blockList[j]->mDOMNode->mComputedStyles["font-size"])>DOMUtils::parsePixelFeature(blockList[j-1]->mDOMNode.mComputedStyles["font-size"])) {
+					&& DOMUtils::parsePixelFeature(blockList[j]->mDOMNode.styleProperty("font-size", QWebElement::ComputedStyle))>DOMUtils::parsePixelFeature(blockList[j-1]->mDOMNode.styleProperty("font-size", QWebElement::ComputedStyle))) {
 					mHorizontalSeparators[i].mWeight++; break; 
 				}
 			foreach(QWebElement hrNode, allHRNodes) 
@@ -172,7 +171,7 @@ void SeparatorDetector::computeSeparatorWeights()
 				}
 		}
 	}
-} */
+}
 //#####################################################################
 // Function subdivideBlockPool
 //#####################################################################

@@ -1,6 +1,6 @@
 //#####################################################################
-// Copyright 2010, Ranjitha Kumar.
-// This software is governed by the license contained in LICENSE.
+// Copyright 2012, Ranjitha Kumar. All rights reserved.
+// This software is governed by the BSD 2-Clause License.
 //#####################################################################
 #include <algorithm>
 #include <QDebug>
@@ -18,24 +18,25 @@ BlockExtractor::BlockExtractor(BentoBlock* rootBlock)
 //#####################################################################
 // Function divideDOMTree
 //#####################################################################
-void BlockExtractor::divideDOMTree(DOMElement* domNode)
+void BlockExtractor::divideDOMTree(QWebElement& domNode)
 {
-	qDebug() << domNode->mTagName << " " << domNode->mAttributes["id"] << " " << domNode->mAttributes["class"];
-    
+	qDebug() << domNode.tagName() << " " << domNode.attribute("id") << " " << domNode.attribute("class");
 	int result = isDividable(domNode);
-	if (result == DIVIDE)
-        foreach(DOMElement* child, domNode->mElementChildren) divideDOMTree(child);
+	if (result == DIVIDE) {
+		QWebElement child = domNode.firstChild();
+		while(!child.isNull()) { divideDOMTree(child); child = child.nextSibling(); }
+	}
 	else if (result == NOT_DIVIDE)
 		mBlockPool.insert(new BentoBlock(domNode)); 
 }
 //#####################################################################
 // Function isDividable
 //#####################################################################
-int BlockExtractor::isDividable(DOMElement* domNode)
+int BlockExtractor::isDividable(QWebElement& domNode)
 {	
-	if (!DOMUtils::isValidNode(*domNode)) return DONE;
+	if (!DOMUtils::isValidNode(domNode)) return DONE;
 	
-	int result; QString tag = domNode->mTagName;
+	int result; QString tag = domNode.tagName();
 	
 	result=ruleIsRootBlock(domNode); if (result!=MOVE_ON) return result;
 	result=ruleIsHiddenOverflow(domNode); if (result!=MOVE_ON) return result;
@@ -55,13 +56,14 @@ int BlockExtractor::isDividable(DOMElement* domNode)
 		result=ruleNoChildrenInBBox(domNode); if (result!=MOVE_ON) return result;
 		result=ruleAllChildrenVTextNodes(domNode); if (result!=MOVE_ON) return result;
 		result=ruleSameSizeAsRoot(domNode); if (result!=MOVE_ON) return result;
+		result=ruleSiblingNotDivided(domNode); if (result!=MOVE_ON) return result;
 	}
 	else if(tag!="IMG" && tag!="IFRAME" && tag!="AREA" && tag!="INPUT" && tag!="SELECT" && tag!="CANVAS") {
 		result=ruleNoValidChildren(domNode); if (result!=MOVE_ON) return result;
 		result=ruleOneValidChild(domNode); if (result!=MOVE_ON) return result;
 		result=ruleNoChildrenInBBox(domNode); if (result!=MOVE_ON) return result;
 		result=ruleAllChildrenVTextNodes(domNode); if (result!=MOVE_ON) return result;
-		if (DOMUtils::isInlineNode(*domNode) || tag == "P") {
+		if (DOMUtils::isInlineNode(domNode) || tag == "P") {
 			result=ruleLineBreakChild(domNode); if (result!=MOVE_ON) return result; }
 		result=ruleHRChild(domNode); if (result!=MOVE_ON) return result;
 		result=ruleSameSizeAsRoot(domNode); if (result!=MOVE_ON) return result;
@@ -72,7 +74,7 @@ int BlockExtractor::isDividable(DOMElement* domNode)
 //#####################################################################
 // Function ruleIsRootBlock
 //#####################################################################
-int BlockExtractor::ruleIsRootBlock(DOMElement* domNode) const
+int BlockExtractor::ruleIsRootBlock(const QWebElement& domNode) const
 {
 	if(domNode == mRootBlock->mDOMNode) { 
 		qDebug() << "DIVIDE (ruleIsRootBlock)"; 
@@ -83,9 +85,9 @@ int BlockExtractor::ruleIsRootBlock(DOMElement* domNode) const
 //#####################################################################
 // Function ruleIsHiddenOverflow
 //#####################################################################
-int BlockExtractor::ruleIsHiddenOverflow(DOMElement* domNode) const
+int BlockExtractor::ruleIsHiddenOverflow(QWebElement& domNode) const
 {	
-	if(DOMUtils::isHiddenOverflow(*domNode)) { 
+	if(DOMUtils::isHiddenOverflow(domNode)) { 
 		qDebug() << "DIVIDE (ruleIsHiddenOverflow)"; 
 		return DIVIDE; 
 	}
@@ -94,10 +96,10 @@ int BlockExtractor::ruleIsHiddenOverflow(DOMElement* domNode) const
 //#####################################################################
 // Function ruleBackgroundImage
 //#####################################################################
-int BlockExtractor::ruleBackgroundImage(DOMElement* domNode) const
+int BlockExtractor::ruleBackgroundImage(QWebElement& domNode) const
 {
-	if(domNode->mComputedStyles["background-image"]!="none") {
-		QRect bBox = domNode->mGeometry;
+	if(domNode.styleProperty("background-image", QWebElement::ComputedStyle)!="none") {
+		QRect bBox = DOMUtils::getGeometry(domNode);
 		if (DOMUtils::hasValidDimensions(bBox)) { qDebug() << "NOT_DIVIDE (ruleBackgroundImage)"; return NOT_DIVIDE; }
 		else { qDebug() << "DIVIDE (ruleBackgroundImage)"; return DIVIDE; }
 	}
@@ -106,12 +108,12 @@ int BlockExtractor::ruleBackgroundImage(DOMElement* domNode) const
 //#####################################################################
 // Function ruleHasTextChildren
 //#####################################################################
-int BlockExtractor::ruleTextChildren(DOMElement* domNode) const
+int BlockExtractor::ruleTextChildren(QWebElement& domNode) const
 {
-	if(DOMUtils::numTextChildren(*domNode)>0) {
-		if (DOMUtils::hasOnlyTextChildren(*domNode)) {
-			QRect bBox = domNode->mGeometry;
-			int left = DOMUtils::parsePixelFeature(domNode->mComputedStyles["text-indent"]) + bBox.left() + bBox.width();
+	if(DOMUtils::numTextChildren(domNode)>0) {
+		if (DOMUtils::hasOnlyTextChildren(domNode)) {
+			QRect bBox = DOMUtils::getGeometry(domNode);
+			int left = DOMUtils::parsePixelFeature(domNode.styleProperty("text-indent", QWebElement::ComputedStyle)) + bBox.left() + bBox.width();
 			if (left<0) { qDebug() << "DONE (ruleTextChildren)"; return DONE; } 
 		}
 		qDebug() << "NOT_DIVIDE (ruleTextChildren)"; return NOT_DIVIDE; 
@@ -121,21 +123,29 @@ int BlockExtractor::ruleTextChildren(DOMElement* domNode) const
 //#####################################################################
 // Function ruleNoValidChildren
 //#####################################################################
-int BlockExtractor::ruleNoValidChildren(DOMElement* domNode) const
+int BlockExtractor::ruleNoValidChildren(QWebElement& domNode) const
 {
-	if(DOMUtils::numTextChildren(*domNode) > 0) return MOVE_ON;
-    foreach(DOMElement* child, domNode->mElementChildren) if(DOMUtils::isValidNode(*child)) return MOVE_ON;
+	if(DOMUtils::numTextChildren(domNode) > 0) return MOVE_ON;
+	QWebElement child = domNode.firstChild();
+	while(!child.isNull()) {
+		if(DOMUtils::isValidNode(child)) return MOVE_ON;
+		child = child.nextSibling(); 
+	}
 	qDebug() << "DONE (ruleNoValidChildren)"; 
 	return DONE;
 }
 //#####################################################################
 // Function ruleOneValidChild
 //#####################################################################
-int BlockExtractor::ruleOneValidChild(DOMElement* domNode) const
+int BlockExtractor::ruleOneValidChild(QWebElement& domNode) const
 {
-	if(DOMUtils::numTextChildren(*domNode) > 0) return MOVE_ON;
+	if(DOMUtils::numTextChildren(domNode) > 0) return MOVE_ON;
 	uint validChildCount = 0;
-    foreach(DOMElement* child, domNode->mElementChildren) if(DOMUtils::isValidNode(*child)) validChildCount++; 
+	QWebElement child = domNode.firstChild();
+	while(!child.isNull()) {
+		if(DOMUtils::isValidNode(child)) validChildCount++; 
+		child = child.nextSibling(); 
+	}
 	if(validChildCount==1) { 
 		qDebug() << "DIVIDE (ruleOneValidChild)"; 
 		return DIVIDE; 
@@ -145,21 +155,26 @@ int BlockExtractor::ruleOneValidChild(DOMElement* domNode) const
 //#####################################################################
 // Function ruleNoChildrenInBBox
 //#####################################################################
-int BlockExtractor::ruleNoChildrenInBBox(DOMElement* domNode) const
+int BlockExtractor::ruleNoChildrenInBBox(QWebElement& domNode) const
 {	
-	QRect bBox = domNode->mGeometry;
+	QRect bBox = DOMUtils::getGeometry(domNode);
 	if(bBox.width()*bBox.height()>0) {
-		if(DOMUtils::numTextChildren(*domNode)>0) return MOVE_ON;
+		if(DOMUtils::numTextChildren(domNode)>0) return MOVE_ON;
 		bBox.setRect(bBox.left()-1, bBox.top()-1, bBox.width()+2, bBox.height()+2);
 		
-		QVector<DOMElement*> descList;
-        foreach(DOMElement* child, domNode->mElementChildren) if(DOMUtils::isValidNode(*child)) descList.append(child); 
+		QVector<QWebElement> descList;
+		QWebElement child = domNode.firstChild();
+		while (!child.isNull()) { 
+			if(DOMUtils::isValidNode(child)) descList.append(child); 
+			child = child.nextSibling();
+		}
 				
 		while (!descList.isEmpty()) {
-			DOMElement* currChild = descList.first(); descList.pop_front();
-			QRect childBBox = currChild->mGeometry;
+			QWebElement currChild = descList.first(); descList.pop_front();
+			QRect childBBox = DOMUtils::getGeometry(currChild);
 			if (childBBox.width()*childBBox.height()==0) {
-                foreach(DOMElement* child, currChild->mElementChildren) if (DOMUtils::isValidNode(*child)) descList.append(child);
+				child = currChild.firstChild();
+				if (!child.isNull() && DOMUtils::isValidNode(child)) { descList.append(child); child = child.nextSibling(); }
 			}
 			else if(bBox.contains(childBBox)) return MOVE_ON;
 		}
@@ -170,52 +185,64 @@ int BlockExtractor::ruleNoChildrenInBBox(DOMElement* domNode) const
 //#####################################################################
 // Function ruleAllChildrenVTextNodes
 //#####################################################################
-int BlockExtractor::ruleAllChildrenVTextNodes(DOMElement* domNode) const
+int BlockExtractor::ruleAllChildrenVTextNodes(QWebElement& domNode) const
 {	
-	foreach(DOMElement* child, domNode->mElementChildren) if (!DOMUtils::isVirtualTextNode(*child)) return MOVE_ON;
+	QWebElement child = domNode.firstChild();
+	if (!child.isNull()) {
+		if (!DOMUtils::isVirtualTextNode(child)) return MOVE_ON;
+		child = child.nextSibling();
+	}
 	qDebug() << "NOT_DIVIDE (ruleAllChildrenVTextNodes)"; 
 	return NOT_DIVIDE;
 }
 //#####################################################################
 // Function ruleLineBreakChild
 //#####################################################################
-int BlockExtractor::ruleLineBreakChild(DOMElement* domNode) const
+int BlockExtractor::ruleLineBreakChild(const QWebElement& domNode) const
 {
-    foreach(DOMElement* child, domNode->mElementChildren) {
-		if (DOMUtils::isLineBreakNode(*child)) { 
+	QWebElement child = domNode.firstChild();
+	if (!child.isNull()) {
+		if (DOMUtils::isLineBreakNode(child)) { 
 			qDebug() << "DIVIDE (ruleLineBreakChild)"; 
 			return DIVIDE; 
-		}}
+		}
+		child = child.nextSibling();}
 	return MOVE_ON;
 }
 //#####################################################################
 // Function ruleHRChild
 //#####################################################################
-int BlockExtractor::ruleHRChild(DOMElement* domNode) const
+int BlockExtractor::ruleHRChild(const QWebElement& domNode) const
 {
-    foreach(DOMElement* child, domNode->mElementChildren) {
-		if (child->mTagName=="HR") { 
+	QWebElement child = domNode.firstChild();
+	if (!child.isNull()) {
+		if (child.tagName()=="HR") { 
 			qDebug() << "DIVIDE (ruleHRChild)"; 
 			return DIVIDE; 
-		}}
+		}
+	child = child.nextSibling(); }
 	return MOVE_ON;
 }
 //#####################################################################
 // Function ruleDiffBackgroundColorChild
 //#####################################################################
-int BlockExtractor::ruleDiffBackgroundColorChild(DOMElement* domNode)
+int BlockExtractor::ruleDiffBackgroundColorChild(const QWebElement& domNode)
 {	QColor parentColor, childColor;
-	parentColor = DOMUtils::parseColorFeature(domNode->mComputedStyles["background-color"]);
-	QSet<DOMElement*> differingChildren;
-	foreach(DOMElement* child, domNode->mElementChildren) {
-		childColor = DOMUtils::parseColorFeature(child->mComputedStyles["background-color"]);
-		if (parentColor!=childColor) differingChildren.insert(child);
+	parentColor = DOMUtils::parseColorFeature(domNode.styleProperty("background-color", QWebElement::ComputedStyle));
+	QSet<QWebElement*> differingChildren;
+	QWebElement child = domNode.firstChild();
+	while(!child.isNull()) {
+		childColor = DOMUtils::parseColorFeature(child.styleProperty("background-color", QWebElement::ComputedStyle));
+		if (parentColor!=childColor) differingChildren.insert(&child);
+		child = child.nextSibling();
 	}
 	if (differingChildren.size()==0) return MOVE_ON;
 	
-	foreach(DOMElement* child, domNode->mElementChildren) {
-		if(differingChildren.contains(child)) mBlockPool.insert(new BentoBlock(child));
+	child = domNode.firstChild();
+	while(!child.isNull()) {
+		if(differingChildren.contains(&child)) mBlockPool.insert(new BentoBlock(child));
 		else divideDOMTree(child);
+		child = child.nextSibling();
 	}
 	qDebug() << "NOT_DIVIDED " << QString::number(differingChildren.size()) << " (ruleDiffBackgroundColorChild)";
 	return DONE;
@@ -223,15 +250,27 @@ int BlockExtractor::ruleDiffBackgroundColorChild(DOMElement* domNode)
 //#####################################################################
 // Function ruleSameSizeAsRoot
 //#####################################################################
-int BlockExtractor::ruleSameSizeAsRoot(DOMElement* domNode) const
+int BlockExtractor::ruleSameSizeAsRoot(QWebElement& domNode) const
 {
-	QRect domRect = domNode->mGeometry;
+	QRect domRect = DOMUtils::getGeometry(domNode);
 	float domArea = domRect.width()*domRect.height();
 	float rootArea = mRootBlock->mGeometry.width()*mRootBlock->mGeometry.height();
 	if (domArea/(1.0*rootArea)>0.85) { 
 		qDebug() << "DIVIDE (SameSizeAsRoot)"; 
 		return DIVIDE; 
 	}
+	return MOVE_ON;
+}
+//#####################################################################
+// Function ruleSiblingNotDivided
+//#####################################################################
+int BlockExtractor::ruleSiblingNotDivided(const QWebElement& domNode) const
+{ 
+	foreach (BentoBlock* bentoBlock, mBlockPool)
+		if(domNode.previousSibling()==bentoBlock->mDOMNode) { 
+			qDebug() << "NOT_DIVIDE (ruleSiblingNotDivided)"; 
+			return NOT_DIVIDE; 
+		}
 	return MOVE_ON;
 }
 //#####################################################################

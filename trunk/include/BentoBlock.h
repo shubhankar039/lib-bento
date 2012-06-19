@@ -1,6 +1,6 @@
 //#####################################################################
-// Copyright 2012, Ranjitha Kumar.
-// This software is governed by the license contained in LICENSE.
+// Copyright 2012, Ranjitha Kumar. All rights reserved.
+// This software is governed by the BSD 2-Clause License.
 //#####################################################################
 #ifndef _BENTO_BLOCK_H_
 #define _BENTO_BLOCK_H_
@@ -8,7 +8,9 @@
 #include <QRect>
 #include <QSet>
 #include <QVector>
-#include "DOMElement.h"
+#include <QWebElement>
+#include <QWebFrame>
+#include <QWebPage>
 #include "DOMUtils.h"
 
 namespace bricolage {
@@ -21,26 +23,26 @@ class BentoBlock
     
 public: 
     uint mBentoID;
-	DOMElement* mDOMNode;
+	QWebElement mDOMNode;
     BentoBlock* mParent;  QVector<BentoBlock*> mChildren;
     QRect mGeometry;
     uint mLevel;
     bool mSameSizeContent; // TODO: keep this?
 
 	BentoBlock()
-	:mDOMNode(NULL),mParent(NULL)
+	:mParent(NULL)
 	{}
 	
-	BentoBlock(DOMElement* domNode)
-	:mDOMNode(domNode),mParent(NULL),mGeometry(domNode->mGeometry),mSameSizeContent(false)
+	BentoBlock(QWebElement domNode)
+	:mDOMNode(domNode),mParent(NULL),mGeometry(DOMUtils::getGeometry(domNode)),mSameSizeContent(false)
 	{
 		bool result;
-		QRect clipRect = DOMUtils::isPartiallyHidden(*domNode, result);
+		QRect clipRect = DOMUtils::isPartiallyHidden(domNode, result);
 		if (result) mGeometry = clipRect;
 	}
 	
 	BentoBlock(QSet<BentoBlock*>& blockPool)
-	:mDOMNode(NULL),mParent(NULL),mGeometry(boundingRectangle(blockPool)),mSameSizeContent(false)
+	:mParent(NULL),mGeometry(boundingRectangle(blockPool)),mSameSizeContent(false)
 	{}
 	
 	~BentoBlock()

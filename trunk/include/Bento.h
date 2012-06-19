@@ -1,14 +1,14 @@
 //#####################################################################
-// Copyright 2010, Ranjitha Kumar.
-// This software is governed by the license contained in LICENSE.
+// Copyright 2012, Ranjitha Kumar. All rights reserved.
+// This software is governed by the BSD 2-Clause License.
 //#####################################################################
 #ifndef _BENTO_H_
 #define _BENTO_H_
 
 #include <QVarLengthArray>
 #include <QVector>
+#include <QWebElement>
 #include "DOMUtils.h"
-#include "DOMTree.h"
 #include "Separator.h"
 
 namespace bricolage{
@@ -25,14 +25,17 @@ public:
 	QVector<QString> mNoChildrenTags, mNoSameTagChildren;
 
 protected:
-	const DOMTree& mDOMTree;
+	QWebElement mBrowserDocument;
 
 public:
-	Bento(const DOMTree& domTree) : mDOMTree(domTree), mNumMoves(0), mNumRedundant(0)
-	{ 
-        mNoChildrenTags << "INPUT" << "OPTION" << "OPTGROUP" << "IMG" << "AREA" << "PARAM" << "BR" << "HR" << "PRE" << "CODE" << "TEXTAREA" << "SELECT" << "IFRAME" << "NOFRAME" << "STYLE" << "SCRIPT" << "LINK";
+	Bento() : mNumMoves(0), mNumRedundant(0)
+	{}
+	
+	void init(QWebElement browserDocument) {
+		mBrowserDocument=browserDocument; 
+		mNoChildrenTags << "INPUT" << "OPTION" << "OPTGROUP" << "IMG" << "AREA" << "PARAM" << "BR" << "HR" << "PRE" << "CODE" << "TEXTAREA" << "SELECT" << "IFRAME" << "NOFRAME" << "STYLE" << "SCRIPT" << "LINK";
 		mNoSameTagChildren << "P" << "FORM" << "H1" << "H2" << "H3" << "H4" << "H5" << "H6" << "STRONG" << "B" << "I" << "SMALL" << "DEL" << "INS" << "OBJECT" << "FIELDSET" << "LABEL";		
-    }
+	}
 	
 public:
 	void computeBentoTree(BentoTree& bentoTree);

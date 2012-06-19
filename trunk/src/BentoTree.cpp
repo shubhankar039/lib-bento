@@ -1,6 +1,6 @@
 //#####################################################################
-// Copyright 2010, Ranjitha Kumar.
-// This software is governed by the license contained in LICENSE.
+// Copyright 2012, Ranjitha Kumar. All rights reserved.
+// This software is governed by the BSD 2-Clause License.
 //#####################################################################
 #include "BentoBlock.h"
 #include "BentoTree.h"

@@ -1,32 +1,38 @@
 //#####################################################################
-// Copyright 2010, Ranjitha Kumar.
-// This software is governed by the license contained in LICENSE.
+// Copyright 2012, Ranjitha Kumar. All rights reserved.
+// This software is governed by the BSD 2-Clause License.
 //#####################################################################
 #include <algorithm>
 #include <QByteArray>
 #include <QDebug>
+#include <QWebFrame>
+#include <QFile>
+#include <QList>
 #include "BlockExtractor.h"
 #include "SeparatorDetector.h"
 #include "StructureConstructor.h"
 #include "Bento.h"
 #include "BentoTree.h"
 #include "BentoBlock.h"
-#include "DOMElement.h"
 using namespace bricolage;
 //#####################################################################
 // Function computeBentoTree
 //#####################################################################
 void Bento::computeBentoTree(BentoTree& bentoTree)
 {
-    // TODO: move to application creating DOMTree
-/*
-    QFile jquery(":/assets/jquery.js");
+	QFile jquery(":/assets/jquery.js");
     jquery.open(QIODevice::ReadOnly);
     QString jquery_src(jquery.readAll());
 	mBrowserDocument.webFrame()->evaluateJavaScript(jquery_src);
-*/
+
+	QFile preprocess(":/assets/preprocess.js");
+    preprocess.open(QIODevice::ReadOnly);
+    QString preprocess_src(preprocess.readAll());
+	mBrowserDocument.webFrame()->evaluateJavaScript(preprocess_src);
 	
-    BentoBlock* rootBlock = new BentoBlock(mDOMTree.mBodyNode);	
+	QWebElement body = mBrowserDocument.findFirst("body");
+	BentoBlock* rootBlock = new BentoBlock(body);
+	
 	blockExtractionPass(rootBlock);
 	bentoTree.init(rootBlock);
 	
@@ -37,7 +43,6 @@ void Bento::computeBentoTree(BentoTree& bentoTree)
     numNodesBefore=numNodesAfter=0;
 	    
 	do {
-        
 		atLeastTwoChildren(rootBlock);
 		canvasTagPass(rootBlock);
 		bentoTree.init(rootBlock);
@@ -47,7 +52,7 @@ void Bento::computeBentoTree(BentoTree& bentoTree)
 			if (bentoBlock->mChildren.size()>0) {
 				QSet<BentoBlock*> blockPool = bentoBlock->mChildren.toList().toSet();
 				bentoBlock->mChildren.clear();
-				SeparatorDetector separatorDetector(blockPool);
+				SeparatorDetector separatorDetector(mBrowserDocument, blockPool);
 				mSeparatorList += separatorDetector.mSeparators;
 				StructureConstructor structureConstructor(separatorDetector.mSeparators, blockPool, bentoBlock);
 			}
@@ -117,8 +122,8 @@ void Bento::reStructure(BentoBlock* bentoBlock, const BentoTree& bentoTree)
 //#####################################################################
 bool Bento::divideFurther(BentoBlock* bentoBlock) const
 {
-	DOMElement* domNode = bentoBlock->mDOMNode;
-	if(DOMUtils::numTextChildren(*domNode) > 0) return false;
+	QWebElement domNode = bentoBlock->mDOMNode;
+	if(DOMUtils::numTextChildren(domNode) > 0) return false;
 	return true;
 }
 //#####################################################################
@@ -126,8 +131,8 @@ bool Bento::divideFurther(BentoBlock* bentoBlock) const
 //#####################################################################
 bool Bento::parentTaboo(BentoBlock* bentoBlock, BentoBlock* potParent) const
 {
-	for(int i=0; i<mNoChildrenTags.size(); i++) if(potParent->mDOMNode->mTagName==mNoChildrenTags[i]) return true;
-	for(int i=0; i<mNoSameTagChildren.size(); i++) if(potParent->mDOMNode->mTagName==mNoSameTagChildren[i] && bentoBlock->mDOMNode->mTagName==mNoSameTagChildren[i]) return true;
+	for(int i=0; i<mNoChildrenTags.size(); i++) if(potParent->mDOMNode.tagName()==mNoChildrenTags[i]) return true;
+	for(int i=0; i<mNoSameTagChildren.size(); i++) if(potParent->mDOMNode.tagName()==mNoSameTagChildren[i] && bentoBlock->mDOMNode.tagName()==mNoSameTagChildren[i]) return true;
 	return false;	
 }
 //#####################################################################
@@ -150,7 +155,7 @@ void Bento::atLeastTwoChildren(BentoBlock* bentoBlock) const
 		BentoBlock* temp = NULL;
 		if(bentoBlock->mChildren.size() != 1) break;
 
-		if(bentoBlock->mSameSizeContent || (bentoBlock->mDOMNode!=NULL && (bentoBlock->mDOMNode->mComputedStyles["background-image"]!="none" || DOMUtils::numTextChildren(*(bentoBlock->mDOMNode))>0)) || !bentoBlock->mParent) {
+		if(bentoBlock->mSameSizeContent || (!bentoBlock->mDOMNode.isNull() && (bentoBlock->mDOMNode.styleProperty("background-image", QWebElement::ComputedStyle)!="none" || DOMUtils::numTextChildren(bentoBlock->mDOMNode)>0)) || !bentoBlock->mParent) {
             temp = bentoBlock->mChildren[0];
 			bentoBlock->mChildren.clear();
 			for(int i=0; i<temp->mChildren.size(); i++) { temp->mChildren[i]->mParent = bentoBlock; bentoBlock->mChildren.append(temp->mChildren[i]);}
@@ -182,7 +187,7 @@ void Bento::removeSameSizeChild(BentoBlock* bentoBlock) const
 		float relativeArea = childArea/area;
 		if (percentAreaIntersect>=0.98 && relativeArea>=0.98) {
 			temp = bentoBlock->mChildren[i];
-			if(temp->mDOMNode!=NULL && (DOMUtils::numTextChildren(*(temp->mDOMNode)) || temp->mDOMNode->mTagName=="IMG" || temp->mDOMNode->mComputedStyles["background-image"]!="none"))
+			if(!temp->mDOMNode.isNull() && (DOMUtils::numTextChildren(temp->mDOMNode) || temp->mDOMNode.tagName()=="IMG" || temp->mDOMNode.styleProperty("background-image", QWebElement::ComputedStyle)!="none"))
 				bentoBlock->mSameSizeContent = true;
 			
 			bentoBlock->mChildren.remove(i);
@@ -203,7 +208,7 @@ void Bento::canvasTagPass(BentoBlock* bentoBlock) const
 {	
 	bool allCanvasChildren = true;
 	for (int i=0; i<bentoBlock->mChildren.size(); i++) 		
-		if (bentoBlock->mChildren[i]->mDOMNode->mTagName!="CANVAS") { allCanvasChildren=false; break; }
+		if (bentoBlock->mChildren[i]->mDOMNode.tagName()!="CANVAS") { allCanvasChildren=false; break; }
 	
 	if (allCanvasChildren) { bentoBlock->mChildren.clear(); }
 	else for (int i=0; i<bentoBlock->mChildren.size(); i++) canvasTagPass(bentoBlock->mChildren[i]);
@@ -213,10 +218,14 @@ void Bento::canvasTagPass(BentoBlock* bentoBlock) const
 //#####################################################################
 void Bento::allDOMNodes(BentoBlock* bentoBlock)
 {
-    foreach(DOMElement* child, bentoBlock->mDOMNode->mElementChildren) {
-        BentoBlock* childBlock = new BentoBlock(child);
+	QWebElement child = bentoBlock->mDOMNode.firstChild();
+	while (!child.isNull())
+	{
+		BentoBlock* childBlock = new BentoBlock(child);
 		childBlock->mParent = bentoBlock;
 		bentoBlock->mChildren.append(childBlock);
 		allDOMNodes(childBlock);
-    }
+		
+		child = child.nextSibling();
+	}
 }
