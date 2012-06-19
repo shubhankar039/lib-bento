@@ -1,12 +1,14 @@
 //#####################################################################
-// Copyright 2012, Ranjitha Kumar.
-// This software is governed by the license contained in LICENSE.
+// Copyright 2012, Ranjitha Kumar. All rights reserved.
+// This software is governed by the BSD 2-Clause License.
 //#####################################################################
 #ifndef _PAGE_H_
 #define _PAGE_H_
 
+#include <QList>
+#include <QWebElement>
+#include <QWebFrame>
 #include <QWebPage>
-#include "DOMTree.h"
 #include "BentoTree.h"
 
 namespace bricolage {
@@ -22,7 +24,7 @@ class Page
 public:
     uint mPageID;
     QString mURL;
-    DOMTree mDOMTree;
+    QList<QWebElement> mDOMNodes;
     BentoTree* mBentoTree;
 	
 public:
@@ -30,6 +32,9 @@ public:
 
 	~Page() 
 	{ delete mBentoTree; }
+
+private:
+    void setDOMNodes(const QWebElement& domNode);
 
 //#####################################################################
 };

@@ -1,6 +1,6 @@
 //#####################################################################
-// Copyright 2010, Ranjitha Kumar.
-// This software is governed by the license contained in LICENSE.
+// Copyright 2012, Ranjitha Kumar. All rights reserved.
+// This software is governed by the BSD 2-Clause License.
 //#####################################################################
 #include "StructureConstructor.h"
 #include "BentoBlock.h"
@@ -12,14 +12,13 @@ void StructureConstructor::mergeBlocks()
 {	
 	qStableSort(mSeparatorList.begin(), mSeparatorList.end(), Separator::lessThanWeight);
 	int separatorIndex = 0;	
-    // go thru all the separators
+
 	while(separatorIndex < mSeparatorList.size()) {
-        // order separators by weight
 		int minWeight = mSeparatorList[separatorIndex].mWeight;
 		QVector<QSet<BentoBlock*> > mergeBlockList;
-        // tempblock pool has all the blocks by min weight 
+
 		QSet<BentoBlock*> tempBlockPool = mSeparatorList[separatorIndex].blocks();
-        // add blocks to mergeBlocklist (has only the first )
+
 		mergeBlockList.append(tempBlockPool);
 		separatorIndex++;
 		

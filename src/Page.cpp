@@ -1,6 +1,6 @@
 //#####################################################################
-// Copyright 2012, Ranjitha Kumar.
-// This software is governed by the license contained in LICENSE.
+// Copyright 2012, Ranjitha Kumar. All rights reserved.
+// This software is governed by the BSD 2-Clause License.
 //#####################################################################
 #include "Page.h"
 #include "Bento.h"
@@ -12,7 +12,20 @@ using namespace bricolage;
 Page::Page(QWebPage& webPage, int pageID, QString url)
 :mPageID(pageID),mURL(url),mBentoTree(new BentoTree())
 {
-    mDOMTree.init(webPage);
-    Bento bento(mDOMTree);
+    setDOMNodes(webPage.mainFrame()->documentElement());
+    Bento bento;
+    bento.init(webPage.mainFrame()->documentElement());
     bento.computeBentoTree(*mBentoTree);
+}
+//#####################################################################
+// Function setDOMNodes
+//#####################################################################
+void Page::setDOMNodes(const QWebElement& domNode) {
+    QWebElement domChild = domNode.firstChild();
+    while (!domChild.isNull()) {
+        setDOMNodes(domChild);
+        domChild = domChild.nextSibling();
+    }
+    
+    mDOMNodes.append(domNode);
 }
